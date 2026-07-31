@@ -151,6 +151,11 @@
       inset -4px -5px 8px rgba(0,0,0,0.55);
     animation:orbFloat 3.6s ease-in-out infinite;
   }
+  .blip-icon{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:12px; line-height:1; pointer-events:none;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,0.7));
+  }
   .blip-core::after{
     content:''; position:absolute; left:50%; bottom:-9px; width:60%; height:6px;
     transform:translateX(-50%); border-radius:50%;
@@ -442,6 +447,29 @@
   const TX_POWER = -59;
   const ENV_FACTOR = 2.5;
 
+  // ---------- Type recognition by name ----------
+  // Coincide por palabras clave en el nombre anunciado por el dispositivo.
+  // No hay forma de saber el tipo real vía Bluetooth; es solo una heurística visual.
+  const TYPE_MAP = [
+    { icon:'🎧', label:'Auriculares', keys:['airpods','buds','earpods','auricular','headphone','headset','pods'] },
+    { icon:'🔊', label:'Altavoz',     keys:['speaker','altavoz','boombox','jbl','soundlink','sonos'] },
+    { icon:'⌚', label:'Reloj',        keys:['watch','band','fit','reloj','garmin','amazfit'] },
+    { icon:'💻', label:'Computadora', keys:['macbook','laptop','notebook','pc-','thinkpad'] },
+    { icon:'📱', label:'Celular',     keys:['iphone','galaxy','pixel','xiaomi','redmi','phone'] },
+    { icon:'🖨️', label:'Impresora',   keys:['printer','impresora'] },
+    { icon:'🚲', label:'Sensor/IoT',  keys:['sensor','tile','beacon','esp32','esp8266','arduino'] },
+    { icon:'🎮', label:'Control',     keys:['controller','gamepad','joy-con','dualsense','xbox'] },
+  ];
+  const DEFAULT_TYPE = { icon:'🔷', label:'Genérico' };
+
+  function detectType(name){
+    const n = (name || '').toLowerCase();
+    for (const t of TYPE_MAP){
+      if (t.keys.some(k => n.includes(k))) return t;
+    }
+    return DEFAULT_TYPE;
+  }
+
   function hashBearing(str){
     let h = 0;
     for (let i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) >>> 0; }
@@ -469,12 +497,15 @@
     if (dev.el) return;
     const wrap = document.createElement('div');
     wrap.className = 'blip';
-    wrap.innerHTML = `<div class="blip-core"></div><div class="blip-tag"><div class="name"></div><div class="meta"></div></div>`;
+    wrap.innerHTML = `<div class="blip-core"><span class="blip-icon"></span></div><div class="blip-tag"><div class="name"></div><div class="meta"></div></div>`;
     els.blipsLayer.appendChild(wrap);
     dev.el = wrap;
     dev.core = wrap.querySelector('.blip-core');
+    dev.iconEl = wrap.querySelector('.blip-icon');
     dev.tagName = wrap.querySelector('.name');
     dev.tagMeta = wrap.querySelector('.meta');
+    dev.iconEl.textContent = dev.type.icon;
+    dev.iconEl.title = dev.type.label;
   }
 
   function updateBlip(dev){
@@ -496,7 +527,7 @@
     dev.el.style.setProperty('--blur', blur.toFixed(1)+'px');
     dev.el.style.transform = `translate(${fieldPx/2 + x}px, ${fieldPx/2 + y}px) translate(-50%,-50%) scale(${scale.toFixed(2)})`;
     dev.tagName.textContent = dev.name;
-    dev.tagMeta.textContent = `${dev.rssi} dBm · ~${distance.toFixed(1)} m`;
+    dev.tagMeta.textContent = `${dev.type.label} · ${dev.rssi} dBm · ~${distance.toFixed(1)} m`;
   }
 
   function pingBlip(dev){
@@ -515,14 +546,15 @@
     }
     let html = '';
     devices.forEach(dev => {
-      html += `<div class="device-row"><span class="dname">${dev.name}</span><span class="drssi">${dev.rssi} dBm</span></div>`;
+      html += `<div class="device-row"><span class="dname">${dev.type.icon} ${dev.name}</span><span class="drssi">${dev.rssi} dBm</span></div>`;
     });
     els.deviceListInner.innerHTML = html;
   }
 
   function addDeviceRecord(id, name){
     if (devices.has(id)) return devices.get(id);
-    const dev = { id, name: name || 'Dispositivo BLE', rssi: -70, bearing: hashBearing(id), el:null, lastSeen:Date.now() };
+    const finalName = name || 'Dispositivo BLE';
+    const dev = { id, name: finalName, type: detectType(finalName), rssi: -70, bearing: hashBearing(id), el:null, lastSeen:Date.now() };
     devices.set(id, dev);
     updateBlip(dev);
     renderList();
