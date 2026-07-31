@@ -71,16 +71,16 @@
   }
   .brand{ display:flex; flex-direction:column; gap:2px; }
   .brand .eyebrow{
-    font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:0.18em;
+    font-family:'JetBrains Mono', monospace; font-size:13px; letter-spacing:0.16em;
     color:var(--cyan); text-transform:uppercase; opacity:0.9;
   }
-  .brand h1{ margin:0; font-size:19px; font-weight:700; letter-spacing:-0.01em; }
+  .brand h1{ margin:0; font-size:25px; font-weight:700; letter-spacing:-0.01em; }
   .status-pill{
     pointer-events:auto;
-    display:flex; align-items:center; gap:7px;
+    display:flex; align-items:center; gap:8px;
     background:rgba(10,14,23,0.55); backdrop-filter:blur(14px);
     border:1px solid var(--line); border-radius:999px;
-    padding:7px 12px 7px 10px; font-family:'JetBrains Mono', monospace; font-size:11px;
+    padding:9px 14px 9px 12px; font-family:'JetBrains Mono', monospace; font-size:14px;
     color:var(--ink-dim);
   }
   .status-dot{ width:7px; height:7px; border-radius:50%; background:var(--ink-dim); flex:none; }
@@ -141,7 +141,7 @@
     opacity:var(--op, 1);
   }
   .blip-core{
-    width:26px; height:26px; border-radius:50%;
+    width:36px; height:36px; border-radius:50%;
     position:relative;
     background:
       radial-gradient(circle at 32% 28%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.35) 8%, transparent 32%),
@@ -153,7 +153,7 @@
   }
   .blip-icon{
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    font-size:12px; line-height:1; pointer-events:none;
+    font-size:17px; line-height:1; pointer-events:none;
     filter:drop-shadow(0 1px 1px rgba(0,0,0,0.7));
   }
   .blip-core::after{
@@ -174,10 +174,10 @@
     white-space:nowrap; text-align:center;
     background:rgba(6,8,16,0.72); backdrop-filter:blur(6px);
     border:1px solid var(--line); border-radius:10px;
-    padding:5px 9px; font-family:'JetBrains Mono', monospace;
+    padding:6px 11px; font-family:'JetBrains Mono', monospace;
   }
-  .blip-tag .name{ font-size:11px; color:var(--ink); font-weight:500; }
-  .blip-tag .meta{ font-size:9.5px; color:var(--ink-dim); margin-top:1px; }
+  .blip-tag .name{ font-size:14px; color:var(--ink); font-weight:600; }
+  .blip-tag .meta{ font-size:12px; color:var(--ink-dim); margin-top:2px; }
 
   /* ---------- BOTTOM CONTROLS ---------- */
   #bottom{
@@ -187,11 +187,11 @@
   }
   #legend{
     display:flex; gap:14px; background:rgba(10,14,23,0.55); backdrop-filter:blur(14px);
-    border:1px solid var(--line); border-radius:14px; padding:9px 14px;
-    font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--ink-dim);
+    border:1px solid var(--line); border-radius:14px; padding:10px 14px;
+    font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--ink-dim);
   }
   #legend span{ display:flex; align-items:center; gap:6px; }
-  #legend i{ width:7px; height:7px; border-radius:50%; display:inline-block; }
+  #legend i{ width:8px; height:8px; border-radius:50%; display:inline-block; }
 
   #scanBtn{
     pointer-events:auto;
@@ -199,8 +199,8 @@
     background:linear-gradient(180deg, #0E1524, #0A0E17);
     border:1px solid rgba(78,255,58,0.35);
     color:var(--ink);
-    font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:14.5px;
-    padding:14px 22px; border-radius:999px;
+    font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:17px;
+    padding:16px 24px; border-radius:999px;
     box-shadow:0 8px 30px rgba(78,255,58,0.12), inset 0 0 0 1px rgba(255,255,255,0.02);
     cursor:pointer;
   }
@@ -215,10 +215,10 @@
     display:flex; align-items:center; justify-content:space-between;
     background:rgba(10,14,23,0.6); backdrop-filter:blur(14px);
     border:1px solid var(--line); border-radius:14px;
-    padding:11px 14px; font-family:'JetBrains Mono', monospace; font-size:11px;
+    padding:13px 16px; font-family:'JetBrains Mono', monospace; font-size:14px;
     color:var(--ink-dim); cursor:pointer;
   }
-  #sheetToggle b{ color:var(--ink); font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:12.5px; }
+  #sheetToggle b{ color:var(--ink); font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px; }
   #sheetToggle .chev{ transition:transform 0.25s ease; }
   #sheetToggle.open .chev{ transform:rotate(180deg); }
 
@@ -229,16 +229,16 @@
     background:rgba(8,11,18,0.7); backdrop-filter:blur(16px);
     border-radius:14px;
   }
-  #sheet.open{ max-height:220px; overflow-y:auto; }
+  #sheet.open{ max-height:260px; overflow-y:auto; }
   .device-row{
     display:flex; align-items:center; justify-content:space-between;
-    padding:10px 14px; border-bottom:1px solid var(--line);
-    font-family:'JetBrains Mono', monospace; font-size:11px;
+    padding:12px 16px; border-bottom:1px solid var(--line);
+    font-family:'JetBrains Mono', monospace; font-size:14px;
   }
   .device-row:last-child{ border-bottom:none; }
-  .device-row .dname{ color:var(--ink); font-family:'Space Grotesk',sans-serif; font-size:12.5px; font-weight:500; }
+  .device-row .dname{ color:var(--ink); font-family:'Space Grotesk',sans-serif; font-size:15.5px; font-weight:500; }
   .device-row .drssi{ color:var(--ink-dim); }
-  .empty-row{ padding:16px 14px; font-size:11px; color:var(--ink-dim); font-family:'JetBrains Mono', monospace; text-align:center; }
+  .empty-row{ padding:18px 16px; font-size:14px; color:var(--ink-dim); font-family:'JetBrains Mono', monospace; text-align:center; }
 
   /* ---------- MODALS / NOTICES ---------- */
   #noticeWrap{
@@ -254,14 +254,14 @@
     border:1px solid var(--line); border-radius:var(--radius-lg);
     padding:20px 20px max(20px, env(safe-area-inset-bottom));
   }
-  #notice .tag{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.16em; color:var(--amber); text-transform:uppercase; }
-  #notice h2{ margin:8px 0 8px; font-size:18px; }
-  #notice p{ margin:0 0 14px; font-size:13.5px; line-height:1.55; color:var(--ink-dim); }
-  #notice ul{ margin:0 0 16px; padding-left:18px; font-size:13px; line-height:1.6; color:var(--ink-dim); }
+  #notice .tag{ font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.16em; color:var(--amber); text-transform:uppercase; }
+  #notice h2{ margin:8px 0 8px; font-size:22px; }
+  #notice p{ margin:0 0 14px; font-size:16px; line-height:1.55; color:var(--ink-dim); }
+  #notice ul{ margin:0 0 16px; padding-left:18px; font-size:15.5px; line-height:1.65; color:var(--ink-dim); }
   #notice button{
-    width:100%; padding:13px; border-radius:12px; border:1px solid rgba(78,255,58,0.35);
+    width:100%; padding:15px; border-radius:12px; border:1px solid rgba(78,255,58,0.35);
     background:rgba(78,255,58,0.08); color:var(--ink); font-family:'Space Grotesk',sans-serif;
-    font-weight:600; font-size:14px; cursor:pointer;
+    font-weight:600; font-size:16.5px; cursor:pointer;
   }
 </style>
 </head>
@@ -487,6 +487,11 @@
     return Math.pow(10, (TX_POWER - rssi) / (10*ENV_FACTOR));
   }
 
+  function formatDistance(meters){
+    if (meters < 1) return Math.round(meters*100) + ' cm';
+    return meters.toFixed(1) + ' m';
+  }
+
   function colorForRssi(rssi){
     if (rssi >= -50) return 'var(--amber)';
     if (rssi >= -75) return 'var(--cyan)';
@@ -527,7 +532,7 @@
     dev.el.style.setProperty('--blur', blur.toFixed(1)+'px');
     dev.el.style.transform = `translate(${fieldPx/2 + x}px, ${fieldPx/2 + y}px) translate(-50%,-50%) scale(${scale.toFixed(2)})`;
     dev.tagName.textContent = dev.name;
-    dev.tagMeta.textContent = `${dev.type.label} · ${dev.rssi} dBm · ~${distance.toFixed(1)} m`;
+    dev.tagMeta.textContent = `${dev.type.label} · ~${formatDistance(distance)}`;
   }
 
   function pingBlip(dev){
@@ -546,7 +551,7 @@
     }
     let html = '';
     devices.forEach(dev => {
-      html += `<div class="device-row"><span class="dname">${dev.type.icon} ${dev.name}</span><span class="drssi">${dev.rssi} dBm</span></div>`;
+      html += `<div class="device-row"><span class="dname">${dev.type.icon} ${dev.name}</span><span class="drssi">~${formatDistance(rssiToDistance(dev.rssi))}</span></div>`;
     });
     els.deviceListInner.innerHTML = html;
   }
@@ -595,7 +600,7 @@
   function jitterDevice(dev){
     setInterval(() => {
       const drift = (Math.random()*10) - 5;
-      dev.rssi = Math.max(-95, Math.min(-40, dev.rssi + drift));
+      dev.rssi = Math.round(Math.max(-95, Math.min(-40, dev.rssi + drift)));
       updateBlip(dev);
       renderList();
     }, 1800 + Math.random()*800);
