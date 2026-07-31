@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Radar BLE · AR Sonar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink: #E8ECF4;
+    --ink-dim: #8792A8;
+    --void: #060810;
+    --void-2: #0B0F1A;
+    --cyan: #00E5FF;
+    --cyan-dim: rgba(0,229,255,0.35);
+    --violet: #8B6BFF;
+    --amber: #FFB300;
+    --line: rgba(232,236,244,0.10);
+    --radius-lg: 22px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; height:100%; overflow:hidden;
+    background:var(--void);
+    color:var(--ink);
+    font-family:'Space Grotesk', system-ui, sans-serif;
+    -webkit-user-select:none; user-select:none;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+  }
+
+  /* ---------- CAMERA / FALLBACK LAYER ---------- */
+  #camera{
+    position:fixed; inset:0; width:100%; height:100%;
+    object-fit:cover; z-index:0; background:#000;
+  }
+  #fallbackBg{
+    position:fixed; inset:0; z-index:0; display:none;
+    background:
+      radial-gradient(ellipse at 50% 20%, rgba(0,229,255,0.08), transparent 60%),
+      linear-gradient(180deg, #070A12 0%, #0A0E17 55%, #050710 100%);
+  }
+  #fallbackBg .grid{
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.06) 1px, transparent 1px);
+    background-size:40px 40px;
+    transform:perspective(500px) rotateX(60deg) scale(2);
+    transform-origin:50% 100%;
+    animation:gridmove 8s linear infinite;
+    opacity:0.5;
+  }
+  @keyframes gridmove{ from{background-position:0 0;} to{background-position:0 40px;} }
+  #darken{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:
+      radial-gradient(ellipse at 50% 46%, transparent 42%, rgba(3,5,10,0.55) 100%),
+      linear-gradient(180deg, rgba(3,5,10,0.55) 0%, transparent 16%, transparent 78%, rgba(3,5,10,0.75) 100%);
+  }
+
+  /* ---------- TOP HUD ---------- */
+  #topbar{
+    position:fixed; top:0; left:0; right:0; z-index:20;
+    padding:max(16px, env(safe-area-inset-top)) 18px 14px;
+    display:flex; align-items:flex-start; justify-content:space-between;
+    pointer-events:none;
+  }
+  .brand{ display:flex; flex-direction:column; gap:2px; }
+  .brand .eyebrow{
+    font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:0.18em;
+    color:var(--cyan); text-transform:uppercase; opacity:0.9;
+  }
+  .brand h1{ margin:0; font-size:19px; font-weight:700; letter-spacing:-0.01em; }
+  .status-pill{
+    pointer-events:auto;
+    display:flex; align-items:center; gap:7px;
+    background:rgba(10,14,23,0.55); backdrop-filter:blur(14px);
+    border:1px solid var(--line); border-radius:999px;
+    padding:7px 12px 7px 10px; font-family:'JetBrains Mono', monospace; font-size:11px;
+    color:var(--ink-dim);
+  }
+  .status-dot{ width:7px; height:7px; border-radius:50%; background:var(--ink-dim); flex:none; }
+  .status-dot.live{ background:var(--cyan); box-shadow:0 0 8px var(--cyan); animation:pulseDot 1.6s ease-in-out infinite; }
+  .status-dot.demo{ background:var(--amber); box-shadow:0 0 8px var(--amber); }
+  @keyframes pulseDot{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
+  /* ---------- RADAR FIELD ---------- */
+  #stage{
+    position:fixed; inset:0; z-index:10;
+    perspective:900px; perspective-origin:50% 50%;
+  }
+  #radarField{
+    position:absolute; left:50%; top:50%;
+    width:min(92vw, 560px); height:min(92vw, 560px);
+    transform:translate(-50%,-50%);
+    transform-style:preserve-3d;
+    transition:transform 0.12s linear;
+  }
+  .ring{
+    position:absolute; left:50%; top:50%; border-radius:50%;
+    border:1px solid var(--line);
+    transform:translate(-50%,-50%);
+  }
+  .ring.r1{ width:22%; height:22%; }
+  .ring.r2{ width:48%; height:48%; border-style:dashed; border-color:rgba(232,236,244,0.07); }
+  .ring.r3{ width:74%; height:74%; }
+  .ring.r4{ width:100%; height:100%; border-color:rgba(0,229,255,0.16); }
+  .crosshair{ position:absolute; left:50%; top:50%; width:100%; height:100%; transform:translate(-50%,-50%); }
+  .crosshair::before, .crosshair::after{
+    content:''; position:absolute; background:var(--line);
+  }
+  .crosshair::before{ left:0; right:0; top:50%; height:1px; }
+  .crosshair::after{ top:0; bottom:0; left:50%; width:1px; }
+  .center-you{
+    position:absolute; left:50%; top:50%; width:10px; height:10px; margin:-5px;
+    border-radius:50%; background:var(--cyan); box-shadow:0 0 14px 4px var(--cyan-dim);
+  }
+  .center-you::after{
+    content:''; position:absolute; inset:-14px; border-radius:50%;
+    border:1px solid var(--cyan-dim); animation:youPulse 2.4s ease-out infinite;
+  }
+  @keyframes youPulse{ 0%{ transform:scale(0.4); opacity:0.9;} 100%{ transform:scale(2.6); opacity:0;} }
+
+  #sweep{
+    position:absolute; inset:0; border-radius:50%;
+    background:conic-gradient(from 0deg, transparent 0deg, var(--cyan-dim) 6deg, transparent 34deg);
+    mix-blend-mode:screen;
+    will-change:transform;
+  }
+
+  /* ---------- BLIPS ---------- */
+  .blip{
+    position:absolute; left:0; top:0;
+    transform-style:preserve-3d;
+    pointer-events:auto;
+    filter:blur(var(--blur, 0px));
+    opacity:var(--op, 1);
+  }
+  .blip-core{
+    width:26px; height:26px; border-radius:50%;
+    position:relative;
+    background:
+      radial-gradient(circle at 32% 28%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.35) 8%, transparent 32%),
+      radial-gradient(circle at 50% 55%, var(--dot, var(--cyan)) 0%, color-mix(in srgb, var(--dot, var(--cyan)) 55%, #060810) 75%, #060810 100%);
+    box-shadow:
+      0 0 18px 4px color-mix(in srgb, var(--dot, var(--cyan)) 55%, transparent),
+      inset -4px -5px 8px rgba(0,0,0,0.55);
+    animation:orbFloat 3.6s ease-in-out infinite;
+  }
+  .blip-core::after{
+    content:''; position:absolute; left:50%; bottom:-9px; width:60%; height:6px;
+    transform:translateX(-50%); border-radius:50%;
+    background:radial-gradient(ellipse, color-mix(in srgb, var(--dot, var(--cyan)) 60%, transparent) 0%, transparent 75%);
+    opacity:0.7;
+  }
+  @keyframes orbFloat{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-4px);} }
+  .blip.ping .blip-core::before{
+    content:''; position:absolute; inset:-8px; border-radius:50%;
+    border:2px solid var(--dot, var(--cyan));
+    animation:pingRing 0.9s ease-out;
+  }
+  @keyframes pingRing{ 0%{ transform:scale(0.6); opacity:1;} 100%{ transform:scale(3.2); opacity:0;} }
+  .blip-tag{
+    position:absolute; left:50%; top:calc(100% + 6px); transform:translateX(-50%);
+    white-space:nowrap; text-align:center;
+    background:rgba(6,8,16,0.72); backdrop-filter:blur(6px);
+    border:1px solid var(--line); border-radius:10px;
+    padding:5px 9px; font-family:'JetBrains Mono', monospace;
+  }
+  .blip-tag .name{ font-size:11px; color:var(--ink); font-weight:500; }
+  .blip-tag .meta{ font-size:9.5px; color:var(--ink-dim); margin-top:1px; }
+
+  /* ---------- BOTTOM CONTROLS ---------- */
+  #bottom{
+    position:fixed; left:0; right:0; bottom:0; z-index:30;
+    padding:0 16px max(16px, env(safe-area-inset-bottom));
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+  }
+  #legend{
+    display:flex; gap:14px; background:rgba(10,14,23,0.55); backdrop-filter:blur(14px);
+    border:1px solid var(--line); border-radius:14px; padding:9px 14px;
+    font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--ink-dim);
+  }
+  #legend span{ display:flex; align-items:center; gap:6px; }
+  #legend i{ width:7px; height:7px; border-radius:50%; display:inline-block; }
+
+  #scanBtn{
+    pointer-events:auto;
+    display:flex; align-items:center; gap:10px;
+    background:linear-gradient(180deg, #0E1524, #0A0E17);
+    border:1px solid rgba(0,229,255,0.35);
+    color:var(--ink);
+    font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:14.5px;
+    padding:14px 22px; border-radius:999px;
+    box-shadow:0 8px 30px rgba(0,229,255,0.12), inset 0 0 0 1px rgba(255,255,255,0.02);
+    cursor:pointer;
+  }
+  #scanBtn:active{ transform:scale(0.97); }
+  #scanBtn .ico{
+    width:9px; height:9px; border-radius:50%; background:var(--cyan);
+    box-shadow:0 0 10px var(--cyan); flex:none;
+  }
+
+  #sheetToggle{
+    pointer-events:auto; width:100%; max-width:420px;
+    display:flex; align-items:center; justify-content:space-between;
+    background:rgba(10,14,23,0.6); backdrop-filter:blur(14px);
+    border:1px solid var(--line); border-radius:14px;
+    padding:11px 14px; font-family:'JetBrains Mono', monospace; font-size:11px;
+    color:var(--ink-dim); cursor:pointer;
+  }
+  #sheetToggle b{ color:var(--ink); font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:12.5px; }
+  #sheetToggle .chev{ transition:transform 0.25s ease; }
+  #sheetToggle.open .chev{ transform:rotate(180deg); }
+
+  #sheet{
+    pointer-events:auto; width:100%; max-width:420px;
+    max-height:0; overflow:hidden;
+    transition:max-height 0.3s ease;
+    background:rgba(8,11,18,0.7); backdrop-filter:blur(16px);
+    border-radius:14px;
+  }
+  #sheet.open{ max-height:220px; overflow-y:auto; }
+  .device-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px; border-bottom:1px solid var(--line);
+    font-family:'JetBrains Mono', monospace; font-size:11px;
+  }
+  .device-row:last-child{ border-bottom:none; }
+  .device-row .dname{ color:var(--ink); font-family:'Space Grotesk',sans-serif; font-size:12.5px; font-weight:500; }
+  .device-row .drssi{ color:var(--ink-dim); }
+  .empty-row{ padding:16px 14px; font-size:11px; color:var(--ink-dim); font-family:'JetBrains Mono', monospace; text-align:center; }
+
+  /* ---------- MODALS / NOTICES ---------- */
+  #noticeWrap{
+    position:fixed; inset:0; z-index:50; display:none;
+    align-items:flex-end; justify-content:center;
+    background:rgba(3,5,10,0.55); backdrop-filter:blur(4px);
+    padding:16px;
+  }
+  #noticeWrap.show{ display:flex; }
+  #notice{
+    width:100%; max-width:440px;
+    background:linear-gradient(180deg, #0D1220, #090C14);
+    border:1px solid var(--line); border-radius:var(--radius-lg);
+    padding:20px 20px max(20px, env(safe-area-inset-bottom));
+  }
+  #notice .tag{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.16em; color:var(--amber); text-transform:uppercase; }
+  #notice h2{ margin:8px 0 8px; font-size:18px; }
+  #notice p{ margin:0 0 14px; font-size:13.5px; line-height:1.55; color:var(--ink-dim); }
+  #notice ul{ margin:0 0 16px; padding-left:18px; font-size:13px; line-height:1.6; color:var(--ink-dim); }
+  #notice button{
+    width:100%; padding:13px; border-radius:12px; border:1px solid rgba(0,229,255,0.35);
+    background:rgba(0,229,255,0.08); color:var(--ink); font-family:'Space Grotesk',sans-serif;
+    font-weight:600; font-size:14px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<video id="camera" autoplay playsinline muted></video>
+<div id="fallbackBg"><div class="grid"></div></div>
+<div id="darken"></div>
+
+<div id="topbar">
+  <div class="brand">
+    <span class="eyebrow">Sonar de proximidad</span>
+    <h1>Radar BLE</h1>
+  </div>
+  <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px; pointer-events:auto;">
+    <button id="cameraToggle" class="status-pill" style="cursor:pointer; border:1px solid var(--line); font-family:'Space Grotesk',sans-serif; font-weight:600; color:var(--ink);">
+      <span class="status-dot" id="cameraDot"></span>
+      <span id="cameraToggleLabel">Activar cámara</span>
+    </button>
+    <div class="status-pill" id="statusPill">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Inicializando…</span>
+    </div>
+  </div>
+</div>
+
+<div id="stage">
+  <div id="radarField">
+    <div class="ring r4"></div>
+    <div class="ring r3"></div>
+    <div class="ring r2"></div>
+    <div class="ring r1"></div>
+    <div class="crosshair"></div>
+    <div id="sweep"></div>
+    <div class="center-you"></div>
+    <div id="blipsLayer"></div>
+  </div>
+</div>
+
+<div id="bottom">
+  <div id="legend">
+    <span><i style="background:var(--cyan); box-shadow:0 0 6px var(--cyan);"></i>Señal fuerte</span>
+    <span><i style="background:var(--violet); box-shadow:0 0 6px var(--violet);"></i>Señal débil</span>
+    <span><i style="background:var(--amber); box-shadow:0 0 6px var(--amber);"></i>Muy cerca</span>
+  </div>
+
+  <div id="sheetToggle">
+    <span><b id="deviceCount">0</b> dispositivos en el radar</span>
+    <span class="chev">▲</span>
+  </div>
+  <div id="sheet"><div id="deviceListInner"><div class="empty-row">Aún no has agregado dispositivos.</div></div></div>
+
+  <button id="scanBtn"><span class="ico"></span><span id="scanBtnLabel">Detectar dispositivo</span></button>
+</div>
+
+<div id="noticeWrap">
+  <div id="notice">
+    <div class="tag">Antes de empezar</div>
+    <h2>Cómo funciona este radar</h2>
+    <ul id="noticeList"></ul>
+    <button id="noticeOk">Entendido, activar cámara</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const els = {
+    camera: document.getElementById('camera'),
+    fallbackBg: document.getElementById('fallbackBg'),
+    statusDot: document.getElementById('statusDot'),
+    statusText: document.getElementById('statusText'),
+    radarField: document.getElementById('radarField'),
+    sweep: document.getElementById('sweep'),
+    blipsLayer: document.getElementById('blipsLayer'),
+    scanBtn: document.getElementById('scanBtn'),
+    scanBtnLabel: document.getElementById('scanBtnLabel'),
+    sheetToggle: document.getElementById('sheetToggle'),
+    sheet: document.getElementById('sheet'),
+    deviceListInner: document.getElementById('deviceListInner'),
+    deviceCount: document.getElementById('deviceCount'),
+    noticeWrap: document.getElementById('noticeWrap'),
+    noticeList: document.getElementById('noticeList'),
+    noticeOk: document.getElementById('noticeOk'),
+    cameraToggle: document.getElementById('cameraToggle'),
+    cameraDot: document.getElementById('cameraDot'),
+    cameraToggleLabel: document.getElementById('cameraToggleLabel'),
+  };
+
+  let cameraActive = false;
+  let currentHeading = 0;      // 0 = norte, grados en sentido horario
+  let headingAvailable = false;
+
+  const BT_SUPPORTED = !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
+  const SECURE = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  let demoMode = !BT_SUPPORTED || !SECURE;
+
+  // ---------- Notice / onboarding ----------
+  const points = [];
+  if (!SECURE) points.push('Este archivo no está en HTTPS: la cámara y Bluetooth necesitan una conexión segura. Súbelo a GitHub Pages, Netlify o similar para usarlo en tu celular.');
+  if (SECURE && !BT_SUPPORTED) points.push('Tu navegador no soporta Web Bluetooth (típico en Safari/iOS). Verás un modo demostración con dispositivos simulados.');
+  points.push('Solo se detectan dispositivos Bluetooth de baja energía (BLE); el Bluetooth clásico de muchos audífonos no es compatible.');
+  points.push('Cada dispositivo se agrega manualmente eligiéndolo en la ventana que abre el navegador — es una medida de privacidad, no un límite de esta página.');
+  points.push('La distancia es una estimación a partir de la potencia de señal (RSSI), no una medición exacta.');
+  points.push('Bluetooth no informa la dirección real del dispositivo. Cada esfera recibe una dirección fija (tipo brújula) al detectarse, y usa el sensor de orientación de tu teléfono para "anclarla" en el espacio mientras giras — es una referencia consistente, no una ubicación física verificada.');
+  els.noticeList.innerHTML = points.map(p => `<li>${p}</li>`).join('');
+  els.noticeWrap.classList.add('show');
+  els.noticeOk.addEventListener('click', () => {
+    els.noticeWrap.classList.remove('show');
+  });
+
+  els.cameraToggle.addEventListener('click', () => {
+    if (cameraActive) return;
+    initCamera();
+    initOrientation();
+  });
+
+  // ---------- Status pill ----------
+  function setStatus(text, mode){
+    els.statusText.textContent = text;
+    els.statusDot.className = 'status-dot' + (mode ? ' ' + mode : '');
+  }
+
+  // ---------- Camera ----------
+  async function initCamera(){
+    els.cameraToggleLabel.textContent = 'Activando…';
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      els.camera.srcObject = stream;
+      els.fallbackBg.style.display = 'none';
+      cameraActive = true;
+      els.cameraToggleLabel.textContent = 'Cámara activa';
+      els.cameraDot.classList.add('live');
+    }catch(err){
+      els.camera.style.display = 'none';
+      els.fallbackBg.style.display = 'block';
+      cameraActive = false;
+      els.cameraToggleLabel.textContent = 'Cámara denegada · reintentar';
+    }
+    setStatus(demoMode ? 'Modo demostración' : 'Listo para escanear', demoMode ? 'demo' : '');
+  }
+
+  // ---------- Device orientation parallax ----------
+  function initOrientation(){
+    function handleTilt(e){
+      const beta = e.beta || 0;   // front-back tilt
+      const gamma = e.gamma || 0; // left-right tilt
+      const rx = Math.max(-8, Math.min(8, (beta - 45) * 0.15));
+      const ry = Math.max(-8, Math.min(8, gamma * 0.15));
+      els.radarField.style.transform = `translate(-50%,-50%) rotateX(${-rx}deg) rotateY(${ry}deg)`;
+    }
+    function handleHeading(e){
+      let heading = null;
+      if (typeof e.webkitCompassHeading === 'number'){
+        heading = e.webkitCompassHeading; // iOS: already clockwise from north
+      } else if (e.absolute && typeof e.alpha === 'number'){
+        heading = (360 - e.alpha) % 360; // Android absolute: convert to clockwise-from-north
+      }
+      if (heading !== null){
+        currentHeading = heading;
+        headingAvailable = true;
+        devices.forEach(updateBlip);
+      }
+    }
+    function attach(){
+      window.addEventListener('deviceorientation', handleTilt);
+      window.addEventListener('deviceorientationabsolute', handleHeading);
+      // Some browsers only ever fire the plain event but mark it absolute
+      window.addEventListener('deviceorientation', (e) => { if (e.absolute) handleHeading(e); });
+    }
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+      DeviceOrientationEvent.requestPermission().then(state => {
+        if (state === 'granted') attach();
+      }).catch(() => attach());
+    } else if ('DeviceOrientationEvent' in window){
+      attach();
+    }
+  }
+
+  // ---------- Device model ----------
+  const devices = new Map(); // id -> {id,name,rssi,angle,el,tagEl,lastSeen}
+  const TX_POWER = -59;
+  const ENV_FACTOR = 2.5;
+
+  function hashBearing(str){
+    let h = 0;
+    for (let i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) >>> 0; }
+    return h % 360;
+  }
+
+  // Ángulo del dispositivo en pantalla ahora mismo, combinando su rumbo fijo
+  // con la orientación real del teléfono (si el sensor de brújula está disponible).
+  function screenAngle(dev){
+    if (!headingAvailable) return dev.bearing;
+    return (dev.bearing - currentHeading + 360) % 360;
+  }
+
+  function rssiToDistance(rssi){
+    return Math.pow(10, (TX_POWER - rssi) / (10*ENV_FACTOR));
+  }
+
+  function colorForRssi(rssi){
+    if (rssi >= -50) return 'var(--amber)';
+    if (rssi >= -75) return 'var(--cyan)';
+    return 'var(--violet)';
+  }
+
+  function ensureBlip(dev){
+    if (dev.el) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'blip';
+    wrap.innerHTML = `<div class="blip-core"></div><div class="blip-tag"><div class="name"></div><div class="meta"></div></div>`;
+    els.blipsLayer.appendChild(wrap);
+    dev.el = wrap;
+    dev.core = wrap.querySelector('.blip-core');
+    dev.tagName = wrap.querySelector('.name');
+    dev.tagMeta = wrap.querySelector('.meta');
+  }
+
+  function updateBlip(dev){
+    ensureBlip(dev);
+    const distance = rssiToDistance(dev.rssi);
+    const r = Math.max(0.08, Math.min(1, distance / 12)); // radius fraction
+    const angleRad = screenAngle(dev) * Math.PI / 180;
+    const fieldPx = els.radarField.clientWidth || 300;
+    const maxR = fieldPx * 0.45;
+    const x = Math.sin(angleRad) * r * maxR;
+    const y = -Math.cos(angleRad) * r * maxR;
+    const scale = 1 - r*0.45;
+    const opacity = 1 - r*0.45;
+    const blur = r*2.2;
+    const color = colorForRssi(dev.rssi);
+
+    dev.el.style.setProperty('--dot', color);
+    dev.el.style.setProperty('--op', opacity.toFixed(2));
+    dev.el.style.setProperty('--blur', blur.toFixed(1)+'px');
+    dev.el.style.transform = `translate(${fieldPx/2 + x}px, ${fieldPx/2 + y}px) translate(-50%,-50%) scale(${scale.toFixed(2)})`;
+    dev.tagName.textContent = dev.name;
+    dev.tagMeta.textContent = `${dev.rssi} dBm · ~${distance.toFixed(1)} m`;
+  }
+
+  function pingBlip(dev){
+    if (!dev.el) return;
+    dev.el.classList.remove('ping');
+    void dev.el.offsetWidth;
+    dev.el.classList.add('ping');
+    if (navigator.vibrate) navigator.vibrate(12);
+  }
+
+  function renderList(){
+    els.deviceCount.textContent = devices.size;
+    if (devices.size === 0){
+      els.deviceListInner.innerHTML = '<div class="empty-row">Aún no has agregado dispositivos.</div>';
+      return;
+    }
+    let html = '';
+    devices.forEach(dev => {
+      html += `<div class="device-row"><span class="dname">${dev.name}</span><span class="drssi">${dev.rssi} dBm</span></div>`;
+    });
+    els.deviceListInner.innerHTML = html;
+  }
+
+  function addDeviceRecord(id, name){
+    if (devices.has(id)) return devices.get(id);
+    const dev = { id, name: name || 'Dispositivo BLE', rssi: -70, bearing: hashBearing(id), el:null, lastSeen:Date.now() };
+    devices.set(id, dev);
+    updateBlip(dev);
+    renderList();
+    return dev;
+  }
+
+  // ---------- Real Web Bluetooth flow ----------
+  async function scanRealDevice(){
+    try{
+      const device = await navigator.bluetooth.requestDevice({ acceptAllDevices:true, optionalServices:[] });
+      const id = device.id;
+      const dev = addDeviceRecord(id, device.name);
+      setStatus('Dispositivo agregado: ' + dev.name, 'live');
+
+      if ('watchAdvertisements' in device){
+        device.addEventListener('advertisementreceived', (evt) => {
+          if (typeof evt.rssi === 'number'){
+            dev.rssi = evt.rssi;
+            dev.lastSeen = Date.now();
+            updateBlip(dev);
+            renderList();
+          }
+        });
+        try{ await device.watchAdvertisements(); }catch(e){ jitterDevice(dev); }
+      } else {
+        jitterDevice(dev);
+      }
+
+      device.addEventListener('gattserverdisconnected', () => {
+        setStatus(dev.name + ' se desconectó', '');
+      });
+    }catch(err){
+      // user cancelled the chooser, or no devices found — no need to alarm them
+      setStatus('Escaneo cancelado', '');
+    }
+  }
+
+  function jitterDevice(dev){
+    setInterval(() => {
+      const drift = (Math.random()*10) - 5;
+      dev.rssi = Math.max(-95, Math.min(-40, dev.rssi + drift));
+      updateBlip(dev);
+      renderList();
+    }, 1800 + Math.random()*800);
+  }
+
+  // ---------- Demo mode ----------
+  const DEMO_NAMES = ['Auriculares Demo', 'Altavoz Demo', 'Reloj Demo'];
+  function addDemoDevice(){
+    const n = DEMO_NAMES[devices.size % DEMO_NAMES.length] + ' ' + (devices.size+1);
+    const id = 'demo-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    const dev = addDeviceRecord(id, n);
+    jitterDevice(dev);
+    setStatus('Dispositivo demo agregado', 'demo');
+  }
+
+  // ---------- Scan button ----------
+  els.scanBtn.addEventListener('click', () => {
+    if (demoMode){ addDemoDevice(); }
+    else { scanRealDevice(); }
+  });
+
+  // ---------- Sheet toggle ----------
+  els.sheetToggle.addEventListener('click', () => {
+    els.sheetToggle.classList.toggle('open');
+    els.sheet.classList.toggle('open');
+  });
+
+  // ---------- Sweep + ping loop ----------
+  const SWEEP_MS = 4000;
+  let lastAngle = 0;
+  function sweepLoop(ts){
+    const angle = (ts % SWEEP_MS) / SWEEP_MS * 360;
+    els.sweep.style.transform = `rotate(${angle}deg)`;
+    devices.forEach(dev => {
+      const a = screenAngle(dev);
+      const crossed = (lastAngle < a && angle >= a) || (angle < lastAngle); // wrapped around
+      if (crossed && Math.abs(((angle - a + 360) % 360)) < 8){
+        pingBlip(dev);
+      }
+    });
+    lastAngle = angle;
+    requestAnimationFrame(sweepLoop);
+  }
+  requestAnimationFrame(sweepLoop);
+
+  window.addEventListener('resize', () => devices.forEach(updateBlip));
+
+  if (!BT_SUPPORTED || !SECURE){
+    els.scanBtnLabel.textContent = 'Agregar dispositivo demo';
+  }
+})();
+</script>
+</body>
+</html>
